@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Bingo Majo - Generador Individual JPG</title>
+    <style>
+        :root { --gold: #d4af37; --dark: #1a1a1a; --bg: #f4f7f6; --accent: #e74c3c; }
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; background: var(--bg); height: 100vh; overflow: hidden; }
+        
+        /* Panel Lateral */
+        .sidebar { width: 380px; background: white; padding: 20px; box-shadow: 2px 0 15px rgba(0,0,0,0.1); overflow-y: auto; z-index: 10; display: flex; flex-direction: column; }
+        h2 { color: var(--dark); border-bottom: 3px solid var(--gold); padding-bottom: 10px; margin-top: 0; font-size: 20px; text-transform: uppercase; letter-spacing: 1px; }
+        
+        .section-title { font-size: 13px; font-weight: bold; color: var(--gold); text-transform: uppercase; margin: 20px 0 10px 0; border-top: 1px solid #eee; padding-top: 10px; }
+        .control-group { background: #fafafa; padding: 15px; border-radius: 8px; border: 1px solid #eaeaea; margin-bottom: 10px; }
+        
+        label { display: block; font-size: 12px; font-weight: 700; margin-bottom: 5px; color: #555; }
+        input[type="number"], input[type="text"], input[type="file"], input[type="color"] { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 13px; margin-bottom: 5px; }
+        
+        .pos-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+        /* Área de visualización */
+        .preview-area { flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #2c3e50; overflow: auto; padding: 20px; }
+        canvas { box-shadow: 0 0 40px rgba(0,0,0,0.5); background: white; max-width: 90%; max-height: 90%; object-fit: contain; }
+        
+        /* Botones */
+        .btn-action { background: var(--accent); color: white; border: none; padding: 15px; width: 100%; font-weight: bold; cursor: pointer; border-radius: 5px; font-size: 16px; margin-top: 15px; transition: background 0.3s; }
+        .btn-action:hover { background: #c0392b; }
+        .btn-stop { background: #555; margin-top: 5px; }
+
+        #progressBar { width: 100%; height: 10px; background: #ddd; margin-top: 10px; border-radius: 5px; overflow: hidden; display: none; }
+        #progressFill { height: 100%; background: #27ae60; width: 0%; transition: width 0.2s; }
+        #status { font-size: 13px; color: var(--dark); font-weight: bold; margin-top: 8px; text-align: center; min-height: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <h2>Bingo Majo Individual</h2>
+    
+    <div class="control-group">
+        <label>🖼️ 1. Cargar Plantilla (Fondo)</label>
+        <input type="file" id="imageInput" accept="image/*">
+        <label style="margin-top:10px;">🔠 Fuente (.ttf/.otf)</label>
+        <input type="file" id="fontInput" accept=".ttf, .otf">
+        <input type="text" id="fontFamily" value="Arial" oninput="updatePreview()" placeholder="Nombre de fuente">
+    </div>
+
+    <div class="section-title">🎨 Estilos</div>
+    <div class="control-group">
+        <div class="pos-grid">
+            <div><label>Color Núm:</label><input type="color" id="colorNum" value="#000000" oninput="updatePreview()"></div>
+            <div><label>Color Serial:</label><input type="color" id="colorSerial" value="#ffffff" oninput="updatePreview()"></div>
+            <div><label>Tamaño Núm:</label><input type="number" id="sizeNum" value="110" oninput="updatePreview()"></div>
+            <div><label>Tamaño Serial:</label><input type="number" id="sizeSerial" value="40" oninput="updatePreview()"></div>
+        </div>
+    </div>
+
+    <div class="section-title">📍 Ubicación (Coordenadas)</div>
+    <div class="control-group">
+        <label>🔢 Cuadrícula de Números</label>
+        <div class="pos-grid">
+            <div><label>Posición X:</label><input type="number" id="posX" value="50" oninput="updateCardData()"></div>
+            <div><label>Posición Y:</label><input type="number" id="posY" value="530" oninput="updateCardData()"></div>
+            <div><label>Ancho Celda:</label><input type="number" id="cellW" value="195" oninput="updateCardData()"></div>
+            <div><label>Alto Celda:</label><input type="number" id="cellH" value="175" oninput="updateCardData()"></div>
+        </div>
+        <hr style="border: 0; border-top: 1px solid #ddd; margin: 10px 0;">
+        <label>#️⃣ Serial (Número de carta)</label>
+        <div class="pos-grid">
+            <div><label>Serial X:</label><input type="number" id="serX" value="750" oninput="updateCardData()"></div>
+            <div><label>Serial Y:</label><input type="number" id="serY" value="115" oninput="updateCardData()"></div>
+        </div>
+    </div>
+
+    <div class="section-title">🚀 Generación Masiva (JPG)</div>
+    <div class="pos-grid">
+        <div><label>Desde el #:</label><input type="number" id="startSerial" value="1"></div>
+        <div><label>Cantidad:</label><input type="number" id="qty" value="10"></div>
+    </div>
+    
+    <button class="btn-action" id="btnGen" onclick="startBatchGeneration()">DESCARGAR IMÁGENES</button>
+    <button class="btn-action btn-stop" onclick="stopGeneration()">DETENER</button>
+    
+    <div id="progressBar"><div id="progressFill"></div></div>
+    <div id="status">Listo para trabajar</div>
+</div>
+
+<div class="preview-area">
+    <canvas id="mainCanvas"></canvas>
+</div>
+
+<script>
+    const canvas = document.getElementById('mainCanvas');
+    const ctx = canvas.getContext('2d');
+    let baseImage = new Image();
+    let isImageLoaded = false;
+    let isGenerating = false;
+
+    // Configuración única para la carta
+    let cardData = {
+        posX: 50,  posY: 530, 
+        cellW: 195, cellH: 175,
+        serX: 750, serY: 115
+    };
+
+    window.onload = () => {
+        // Cargar configuración guardada si existe
+        const saved = localStorage.getItem('bingoSingleSettings');
+        if (saved) {
+            const data = JSON.parse(saved);
+            cardData = data.cardData || cardData;
+            document.getElementById('posX').value = cardData.posX;
+            document.getElementById('posY').value = cardData.posY;
+            document.getElementById('cellW').value = cardData.cellW;
+            document.getElementById('cellH').value = cardData.cellH;
+            document.getElementById('serX').value = cardData.serX;
+            document.getElementById('serY').value = cardData.serY;
+            
+            document.getElementById('colorNum').value = data.colorNum;
+            document.getElementById('colorSerial').value = data.colorSerial;
+            document.getElementById('sizeNum').value = data.sizeNum;
+            document.getElementById('sizeSerial').value = data.sizeSerial;
+            document.getElementById('fontFamily').value = data.fontFamily;
+        }
+    };
+
+    function updateCardData() {
+        cardData = {
+            posX: parseInt(document.getElementById('posX').value),
+            posY: parseInt(document.getElementById('posY').value),
+            cellW: parseInt(document.getElementById('cellW').value),
+            cellH: parseInt(document.getElementById('cellH').value),
+            serX: parseInt(document.getElementById('serX').value),
+            serY: parseInt(document.getElementById('serY').value)
+        };
+        updatePreview();
+    }
+
+    function saveToStorage() {
+        const globalData = {
+            cardData,
+            colorNum: document.getElementById('colorNum').value,
+            colorSerial: document.getElementById('colorSerial').value,
+            sizeNum: document.getElementById('sizeNum').value,
+            sizeSerial: document.getElementById('sizeSerial').value,
+            fontFamily: document.getElementById('fontFamily').value
+        };
+        localStorage.setItem('bingoSingleSettings', JSON.stringify(globalData));
+    }
+
+    // Carga de Imagen
+    document.getElementById('imageInput').onchange = (e) => {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            baseImage.src = ev.target.result;
+            baseImage.onload = () => {
+                canvas.width = baseImage.width;
+                canvas.height = baseImage.height;
+                isImageLoaded = true;
+                updatePreview();
+            };
+        };
+        reader.readAsDataURL(e.target.files[0]);
+    };
+
+    // Carga de Fuente
+    document.getElementById('fontInput').onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const fontName = "CustomBingo";
+        const reader = new FileReader();
+        reader.onload = async (ev) => {
+            const myFont = new FontFace(fontName, ev.target.result);
+            await myFont.load();
+            document.fonts.add(myFont);
+            document.getElementById('fontFamily').value = fontName;
+            updatePreview();
+        };
+        reader.readAsArrayBuffer(file);
+    };
+
+    function getStyles() {
+        return {
+            colorN: document.getElementById('colorNum').value,
+            colorS: document.getElementById('colorSerial').value,
+            sizeN: parseInt(document.getElementById('sizeNum').value),
+            sizeS: parseInt(document.getElementById('sizeSerial').value),
+            font: document.getElementById('fontFamily').value
+        };
+    }
+
+    // Vista Previa (Números aleatorios constantes visualmente)
+    function updatePreview() {
+        if (!isImageLoaded) return;
+        saveToStorage();
+        
+        // Limpiar y dibujar fondo
+        ctx.drawImage(baseImage, 0, 0);
+        
+        const styles = getStyles();
+        const currentSerial = parseInt(document.getElementById('startSerial').value);
+        
+        drawNumbersOnCanvas(currentSerial, true, styles); // True = generar random para preview
+    }
+
+    function drawNumbersOnCanvas(serialNum, isPreview, s) {
+        // Dibujar Serial
+        ctx.fillStyle = s.colorS;
+        ctx.font = `bold ${s.sizeS}px ${s.font}`;
+        ctx.textAlign = "left"; // O center, dependiendo de tu imagen
+        ctx.textBaseline = "alphabetic";
+        ctx.fillText("#" + serialNum.toString().padStart(4, '0'), cardData.serX, cardData.serY);
+
+        // Dibujar Números
+        ctx.fillStyle = s.colorN;
+        ctx.font = `bold ${s.sizeN}px ${s.font}`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+
+        // Generar columnas Bingo (B:1-15, I:16-30, N:31-45, G:46-60, O:61-75)
+        for (let col = 0; col < 5; col++) {
+            let min = (col * 15) + 1;
+            let max = (col * 15) + 15;
+            
+            // Generar 5 números únicos para esta columna
+            let nums = [];
+            while(nums.length < 5){
+                let r = Math.floor(Math.random() * (max - min + 1)) + min;
+                if(nums.indexOf(r) === -1) nums.push(r);
+            }
+
+            for (let row = 0; row < 5; row++) {
+                // Saltar el centro (FREE)
+                if (col === 2 && row === 2) continue;
+
+                const x = cardData.posX + (col * cardData.cellW) + (cardData.cellW / 2);
+                const y = cardData.posY + (row * cardData.cellH) + (cardData.cellH / 2);
+                
+                // Si es preview, usamos random visual, si es generacion final usamos logica real (aqui es lo mismo realmente)
+                ctx.fillText(nums[row], x, y);
+            }
+        }
+    }
+
+    // --- LÓGICA DE GENERACIÓN MASIVA ---
+
+    function stopGeneration() {
+        isGenerating = false;
+        document.getElementById('status').innerText = "🛑 Generación detenida por el usuario.";
+        document.getElementById('btnGen').disabled = false;
+        document.getElementById('btnGen').style.opacity = "1";
+    }
+
+    async function startBatchGeneration() {
+        if (!isImageLoaded) {
+            alert("⚠️ Carga una imagen de plantilla primero.");
+            return;
+        }
+
+        isGenerating = true;
+        const btn = document.getElementById('btnGen');
+        btn.disabled = true;
+        btn.style.opacity = "0.5";
+        
+        const start = parseInt(document.getElementById('startSerial').value);
+        const qty = parseInt(document.getElementById('qty').value);
+        const styles = getStyles();
+        const status = document.getElementById('status');
+        const bar = document.getElementById('progressBar');
+        const fill = document.getElementById('progressFill');
+
+        bar.style.display = 'block';
+
+        alert("⚠️ IMPORTANTE:\n\nEl navegador te pedirá permiso para descargar múltiples archivos.\nPor favor, responde 'PERMITIR' para que se descarguen todas las imágenes.");
+
+        for (let i = 0; i < qty; i++) {
+            if (!isGenerating) break;
+
+            let currentSerial = start + i;
+            
+            // 1. Dibujar carta limpia
+            ctx.drawImage(baseImage, 0, 0);
+            
+            // 2. Dibujar datos
+            drawNumbersOnCanvas(currentSerial, false, styles);
+
+            // 3. Crear enlace de descarga
+            const link = document.createElement('a');
+            link.download = `Bingo_Carta_${currentSerial.toString().padStart(4, '0')}.jpg`;
+            link.href = canvas.toDataURL('image/jpeg', 0.9); // Calidad 90%
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            // 4. Actualizar estado visual
+            let pct = Math.round(((i + 1) / qty) * 100);
+            fill.style.width = pct + "%";
+            status.innerText = `Generando carta ${i + 1} de ${qty} (Serial #${currentSerial})...`;
+
+            // 5. Pequeña pausa para no saturar al navegador y dar tiempo a guardar
+            await new Promise(resolve => setTimeout(resolve, 600)); 
+        }
+
+        if (isGenerating) {
+            status.innerText = "✅ ¡Proceso completado con éxito!";
+        }
+        isGenerating = false;
+        btn.disabled = false;
+        btn.style.opacity = "1";
+    }
+</script>
+</body>
+</html>
