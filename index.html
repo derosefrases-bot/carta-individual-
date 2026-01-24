@@ -190,27 +190,29 @@
         };
     }
 
-    // Vista Previa (Números aleatorios constantes visualmente)
+    // Vista Previa
     function updatePreview() {
         if (!isImageLoaded) return;
         saveToStorage();
         
-        // Limpiar y dibujar fondo
         ctx.drawImage(baseImage, 0, 0);
         
         const styles = getStyles();
         const currentSerial = parseInt(document.getElementById('startSerial').value);
         
-        drawNumbersOnCanvas(currentSerial, true, styles); // True = generar random para preview
+        drawNumbersOnCanvas(currentSerial, true, styles);
     }
 
     function drawNumbersOnCanvas(serialNum, isPreview, s) {
         // Dibujar Serial
         ctx.fillStyle = s.colorS;
         ctx.font = `bold ${s.sizeS}px ${s.font}`;
-        ctx.textAlign = "left"; // O center, dependiendo de tu imagen
+        ctx.textAlign = "left"; 
         ctx.textBaseline = "alphabetic";
-        ctx.fillText("#" + serialNum.toString().padStart(4, '0'), cardData.serX, cardData.serY);
+        
+        // --- CAMBIO AQUÍ: Se eliminó .padStart(4, '0') ---
+        // Ahora solo muestra "#" + el número
+        ctx.fillText("#" + serialNum, cardData.serX, cardData.serY);
 
         // Dibujar Números
         ctx.fillStyle = s.colorN;
@@ -218,12 +220,10 @@
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
 
-        // Generar columnas Bingo (B:1-15, I:16-30, N:31-45, G:46-60, O:61-75)
         for (let col = 0; col < 5; col++) {
             let min = (col * 15) + 1;
             let max = (col * 15) + 15;
             
-            // Generar 5 números únicos para esta columna
             let nums = [];
             while(nums.length < 5){
                 let r = Math.floor(Math.random() * (max - min + 1)) + min;
@@ -231,13 +231,11 @@
             }
 
             for (let row = 0; row < 5; row++) {
-                // Saltar el centro (FREE)
                 if (col === 2 && row === 2) continue;
 
                 const x = cardData.posX + (col * cardData.cellW) + (cardData.cellW / 2);
                 const y = cardData.posY + (row * cardData.cellH) + (cardData.cellH / 2);
                 
-                // Si es preview, usamos random visual, si es generacion final usamos logica real (aqui es lo mismo realmente)
                 ctx.fillText(nums[row], x, y);
             }
         }
@@ -279,26 +277,24 @@
 
             let currentSerial = start + i;
             
-            // 1. Dibujar carta limpia
             ctx.drawImage(baseImage, 0, 0);
-            
-            // 2. Dibujar datos
             drawNumbersOnCanvas(currentSerial, false, styles);
 
-            // 3. Crear enlace de descarga
             const link = document.createElement('a');
-            link.download = `Bingo_Carta_${currentSerial.toString().padStart(4, '0')}.jpg`;
-            link.href = canvas.toDataURL('image/jpeg', 0.9); // Calidad 90%
+            
+            // --- CAMBIO AQUÍ TAMBIÉN ---
+            // El nombre del archivo ahora será Bingo_Carta_1.jpg en vez de Bingo_Carta_0001.jpg
+            link.download = `Bingo_Carta_${currentSerial}.jpg`;
+            
+            link.href = canvas.toDataURL('image/jpeg', 0.9);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
 
-            // 4. Actualizar estado visual
             let pct = Math.round(((i + 1) / qty) * 100);
             fill.style.width = pct + "%";
             status.innerText = `Generando carta ${i + 1} de ${qty} (Serial #${currentSerial})...`;
 
-            // 5. Pequeña pausa para no saturar al navegador y dar tiempo a guardar
             await new Promise(resolve => setTimeout(resolve, 600)); 
         }
 
@@ -310,5 +306,7 @@
         btn.style.opacity = "1";
     }
 </script>
+
+
 </body>
 </html>
